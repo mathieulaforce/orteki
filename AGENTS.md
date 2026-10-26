@@ -13,3 +13,17 @@ Uses the five canonical labels as-is: `needs-triage`, `needs-info`, `ready-for-a
 ### Domain docs
 
 Single-context: one `CONTEXT.md` plus `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Development
+
+Python 3.12, managed with [`uv`](https://docs.astral.sh/uv/).
+
+- Set up: `uv sync` (core and CLI) or `uv sync --extra gui` (with the Qt app)
+- Run: `uv run orteki --version`, `uv run orteki-app`
+- Check everything CI checks: `uv sync --extra gui && uv run ruff check && uv run ruff format --check && uv run lint-imports && uv run pytest && uv run basedpyright` (CI also runs the tests without the `gui` extra, to prove the core works without Qt)
+
+Rules:
+
+- `orteki.core` must not import Qt, the CLI or the app; `orteki.cli` must not import Qt or the app. `lint-imports` enforces this.
+- Commit messages and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`, …). release-please uses them to version releases and write the changelog.
+- Work on a branch and open a pull request against `trunk`; never push to `trunk` directly.

@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [trunk]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # Without the `gui` extra first: the core and CLI must work without Qt.
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run lint-imports
+      - run: uv run pytest
+      # Type checking covers the Qt app too, so it needs PySide6.
+      - run: uv sync --locked --extra gui
+      - run: uv run basedpyright
