@@ -1,3 +1,4 @@
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -9,6 +10,13 @@ from orteki.cli import app
 
 # The console script installed by `[project.scripts]`, next to the interpreter.
 ORTEKI = Path(sys.executable).parent / "orteki"
+
+# Typer forces coloured output on CI (e.g. GITHUB_ACTIONS); compare plain text.
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def plain(text: str) -> str:
+    return ANSI_ESCAPE.sub("", text)
 
 
 def run_orteki(*args: str) -> subprocess.CompletedProcess[str]:
@@ -33,14 +41,14 @@ def test_help_shows_usage() -> None:
     result = run_orteki("--help")
 
     assert result.returncode == 0
-    assert "Usage: orteki" in result.stdout
+    assert "Usage: orteki" in plain(result.stdout)
 
 
 def test_no_arguments_shows_usage_as_a_usage_error() -> None:
     result = run_orteki()
 
     assert result.returncode == 2
-    assert "Usage: orteki" in result.stdout + result.stderr
+    assert "Usage: orteki" in plain(result.stdout + result.stderr)
 
 
 def test_python_dash_m_runs_the_cli() -> None:
