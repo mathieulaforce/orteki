@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [trunk]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # Without the `gui` extra first: the core and CLI must work without Qt.
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run lint-imports
+      - run: uv run pytest
+      # Then with the Qt app: its tests run headless, and type checking covers it too.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+      - run: uv sync --locked --extra gui
+      - run: uv run pytest
+        env:
+          QT_QPA_PLATFORM: offscreen
+      - run: uv run basedpyright
