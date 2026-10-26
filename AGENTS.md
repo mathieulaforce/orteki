@@ -20,7 +20,8 @@ Python 3.12, managed with [`uv`](https://docs.astral.sh/uv/).
 
 - Set up: `uv sync` (core and CLI) or `uv sync --extra gui` (with the Qt app)
 - Run: `uv run orteki --version`, `uv run orteki-app`
-- Check everything CI checks: `uv sync --extra gui && uv run ruff check && uv run ruff format --check && uv run lint-imports && uv run pytest && uv run basedpyright` (CI also runs the tests without the `gui` extra, to prove the core works without Qt)
+- Check everything CI checks, in CI's order (tests first without Qt, to prove the core and CLI work without it, then with the Qt app):
+  `uv sync && uv run ruff check && uv run ruff format --check && uv run lint-imports && uv run pytest && uv sync --extra gui && QT_QPA_PLATFORM=offscreen uv run pytest && uv run basedpyright`
 
 Rules:
 

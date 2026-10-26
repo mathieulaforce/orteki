@@ -25,7 +25,7 @@ One transformation within a recipe; its output is the next step's input.
 _Avoid_: Stage, action, node
 
 **Active recipe**:
-The recipe used for dictation and transformation when no recipe-specific shortcut was pressed; it stays selected until changed.
+The recipe used for dictation and rewrite when no recipe-specific shortcut was pressed; it stays selected until changed.
 _Avoid_: Default recipe, current recipe, selected recipe
 
 **Recipe test**:

@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Mathieu Laforce" }]
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12"
 dependencies = [
     "typer>=0.16",
 ]
@@ -14,7 +14,8 @@ dependencies = [
 [project.optional-dependencies]
 # The Qt app. The core and the CLI must work without it (see ADR-0004).
 gui = [
-    "PySide6>=6.9",
+    # Essentials only: QtCore/Gui/Widgets/DBus without WebEngine, PDF and 3D.
+    "PySide6-Essentials>=6.9",
 ]
 
 [project.scripts]
@@ -59,10 +60,10 @@ include_external_packages = true
 name = "Core has no Qt, CLI or app dependency"
 type = "forbidden"
 source_modules = ["orteki.core"]
-forbidden_modules = ["PySide6", "orteki.cli", "orteki.app"]
+forbidden_modules = ["PySide6", "shiboken6", "typer", "click", "orteki.cli", "orteki.app"]
 
 [[tool.importlinter.contracts]]
 name = "CLI has no Qt or app dependency"
 type = "forbidden"
 source_modules = ["orteki.cli"]
-forbidden_modules = ["PySide6", "orteki.app"]
+forbidden_modules = ["PySide6", "shiboken6", "orteki.app"]

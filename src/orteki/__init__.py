@@ -1,5 +1,8 @@
 """orteki: offline dictation and rewrite with recipes."""
 
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = version("orteki")
+try:
+    __version__ = version("orteki")
+except PackageNotFoundError:  # running from source without installed metadata
+    __version__ = "0+unknown"
