@@ -30,6 +30,7 @@ Date: 2026-10-26. Versions checked: ctranslate2 4.8.4 (2026-10-24), faster-whisp
   - CUDA 13 is not supported by the PyPI wheels: they `dlopen` `.so.12` only.
   - Errors are lazy: `get_cuda_device_count()` returns 1 even when cuBLAS is missing. The failure only appears on the first GPU op. Treat "model loaded and one tiny inference succeeded" as the real GPU check.
   - The RTX 2070 (cc 7.5) reports compute types `int8, int8_float16, int8_float32, float16, float32`, with no bf16.
+  - **PyAV 19 breaks decoding of audio files.** faster-whisper 1.2.1 declares only `av>=11`, but its `decode_audio` calls `av.open(..., metadata_errors="ignore")`. With PyAV 19.0.2 that raises `TypeError: open() got an unexpected keyword argument 'metadata_errors'`. Pin `av<19` until faster-whisper adapts. Found when running `cuda-check.py`; not triggered when passing a NumPy array instead of a file.
 - **Other:** faster-whisper 1.2.1 pins `ctranslate2>=4.0,<5` and also pulls `onnxruntime` (used for Silero VAD) ([PyPI metadata](https://pypi.org/project/faster-whisper/1.2.1/)). That is CPU onnxruntime, and it does not conflict with the CUDA libs.
 
 ## 2. llama-cpp-python
@@ -103,6 +104,7 @@ explicit = true
 - **No extra selected means no llama-cpp-python.** Do not put it in base `dependencies`: without an extra, uv would fall back to the PyPI sdist and compile.
 - **Possible addition:** `nvidia-ml-py` can go in base deps. It is pure Python, and on non-NVIDIA machines it simply raises at `nvmlInit()`.
 - **CPU fallback for non-NVIDIA users:** install `--extra cpu`. ctranslate2 from PyPI runs on CPU unchanged (MKL/oneDNN built in).
+- **CI:** GitHub runners have no NVIDIA driver, so CI must use `uv sync --extra cpu` (never `cuda`: its llama wheel fails to import without `libcuda.so.1`). Tests that need a GPU should be marked and skipped when NVML init fails.
 - **Caveats:**
   - "Sources are only respected by uv" ([uv dependencies](https://docs.astral.sh/uv/concepts/projects/dependencies/)). Anyone installing orteki from PyPI (pip, or probably `uv tool install orteki[cuda]`) gets neither the index pins nor the conflicts. Not verified for `uv tool install`.
   - The abetlen index serves static HTML without separate metadata files. `uv lock` took about 1.5 min, probably fetching wheels to read metadata (not confirmed).
@@ -151,7 +153,7 @@ explicit = true
 - **Hardware and driver:** RTX 2070, 8192 MiB; about 6.4 GiB free at idle with the Plasma session running. Driver 610.57.04; `nvidia-smi` reports "CUDA UMD Version: 13.3"; NVML `nvmlSystemGetCudaDriverVersion_v2` = 13030; compute capability (7, 5).
 - **Packages:** `akmod-nvidia-610.57.04`, `xorg-x11-drv-nvidia-cuda(-libs)-610.57.04` from RPM Fusion (`rpmfusion-nonfree-nvidia-driver` repo).
 - **CUDA libs:** `ldconfig` shows only `libcuda.so.1` and `libnvidia-ml.so.1`. There is **no** system cuBLAS, cuDNN, cudart, nvcc or `/usr/local/cuda`.
-- **Toolchain:** gcc 16.1.1. System `python3` is 3.14.7. `uv` is not on PATH.
+- **Toolchain:** gcc 16.1.1. System `python3` is 3.14.7. `uv` 0.13.5 is in `~/.local/bin`.
 - **Experiment** (scratch venv on Python 3.14; ctranslate2 4.8.4, faster-whisper 1.2.1, llama-cpp-python 0.3.36 cu124 wheel, nvidia-cublas-cu12 12.9.2.10, nvidia-cuda-runtime-cu12 12.9.79, no cuDNN):
 
   | Condition | Result |
@@ -159,6 +161,16 @@ explicit = true
   | No preload | `WhisperModel(device="cuda")` → `Library libcublas.so.12 is not found or cannot be loaded`; `import llama_cpp` → `libcudart.so.12: cannot open shared object file` |
   | Preload (`ctypes.CDLL(..., RTLD_GLOBAL)` of cudart, cublasLt, cublas from `nvidia.*` package dirs) | whisper-tiny float16 transcription OK (0.37 s incl. load); `llama_supports_gpu_offload()` True; Qwen2.5-0.5B Q4_K_M fully offloaded generates text; NVML free VRAM fell 6438 → 5506 MiB with both loaded |
   | Preload + `CUDA_VISIBLE_DEVICES=""` | `get_cuda_device_count()` 0, `llama_supports_gpu_offload()` False, llama still runs on CPU |
+
+- **Re-run on Python 3.12** with [`cuda-check.py`](cuda-check.py) (`uv run docs/research/cuda-check.py --audio speech.wav --compare-cpu`, same package versions, `av` 18), on 6.1 s of espeak-ng speech:
+
+  | | GPU | CPU (same wheels) |
+  |---|---|---|
+  | Whisper `small` transcribe | 0.7 s (float16), load 0.8 s | 3.5 s (int8) |
+  | Qwen2.5-1.5B-Instruct Q4_K_M | 44 tok/s, load 0.5 s | 19 tok/s |
+  | VRAM used, both loaded | 2472 → 4197 MiB (+1.7 GB) | – |
+
+  The CPU llama figure is the CUDA wheel with `n_gpu_layers=0` (AVX2 off), not the `cpu` wheel.
 
 ## Open questions
 
@@ -173,7 +185,7 @@ explicit = true
 4. **cuBLAS compatibility.** Is there an NVIDIA statement guaranteeing cuBLAS 12.x minor backward compatibility? I verified it only empirically.
 5. **CUDA 13 in CTranslate2.** Will it move to CUDA 13 (`libcublas.so.13`)? If so, re-evaluate switching llama to `cu130`. No announcement found.
 6. **Missing driver library.** Behaviour when `libcuda.so.1` is absent (no NVIDIA driver) but the `cuda` extra is installed: expect an import failure of `llama_cpp`. This follows from the `NEEDED` entries; not tested.
-7. **Python 3.12.** The experiment ran on Python 3.14 (system), not the pinned 3.12. The wheels involved are cp312-available or `py3-none`, so no difference is expected.
+7. ~~**Python 3.12.**~~ Resolved: `cuda-check.py` re-ran the setup on Python 3.12 with the same result (see Local machine).
 
 ## Sources
 
