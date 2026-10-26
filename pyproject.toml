@@ -1,6 +1,6 @@
 [project]
 name = "orteki"
-version = "0.0.0"
+version = "0.1.0"
 description = "Offline dictation and rewrite with recipes for KDE Plasma on Wayland"
 readme = "README.md"
 license = "MIT"
